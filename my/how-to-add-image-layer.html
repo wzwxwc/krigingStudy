@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>使用TS-EMap添加gif图片</title>
+    <!--demo 加载演示的css-->
+    <link rel="stylesheet" type="text/css" href="../src/demo.css">
+    <!--tsgis deps-->
+    <script src="../deps/jquery-1.11.2.js"></script>
+    <script src="../deps/ol.js"></script>
+    <script src="../deps/proj4.js"></script>
+    <script src="../deps/echarts.js"></script>
+    <!--tsgis sdk-->
+    <script src="../deps/ts-gis/tsgis.js"></script>
+    <!--tsemap deps-->
+    <!--工具库-->
+    <script src="../deps/lodash/lodash.js"></script>
+    <script src="../deps/jsts/javascript.util.js"></script>
+    <script src="../deps/jsts/jsts.js"></script>
+    <!--tsemap sdk-->
+    <script src="../deps/tsemap.js"></script>
+    <script src="../deps/kriging.js"></script>
+    <script src="../deps/Contour.js"></script>
+    <script src="../deps/turf.min.js"></script>
+    <!--demo地图初始化相关参数-->
+    <script src="../src/demoMapOptions.js"></script>
+</head>
+<body>
+<div id="map" class="map "></div>
+<div id="buttons">
+    <span>
+        <input type="button" value="添加图片图层" id="addLayer"/>
+        <input type="button" value="清空图片图层" id="DelLayer"/>
+         <input type="button" value="kriging" id="kriging"/>
+        <input type="button" value="标点" id="draw"/>
+    </span>
+</div>
+<script type="text/javascript">
+    'use strict';
+    jQuery(function () {
+        // 1.实例化地图对象;实例+   详细在线文档【】
+        var map = new G.Map(window.demo.mapOptions);
+        //2.初始化底图 ;实例+ 详细在线文档【互联网地图、gis服务软件发布的标准服务等等】
+        var baseLayer = G.utils.LayerUtil.createBaseLayer(window.demo.mapBaseOptions);
+        //3.加载底图
+        map.getMap().addLayer(baseLayer);
+        demo.emap = map;
+        var animateCom = new G.components.AnimateComponent({
+            map: map
+        });/**===========================================添加图片=============================================**/
+        jQuery('#addLayer').on('click', function () {
+            var arrPoint = new Array();
+            var point_left_bottom = new g2.geom.Point({
+                x: 108.30322265625,
+                y: 38.638916015625,
+                spatialReference: map.spatialReference
+            });
+            var point_right_top = new g2.geom.Point({
+                x: 113.5107421875,
+                y: 41.165771484375,
+                spatialReference: map.spatialReference
+            });
+            arrPoint.push(point_left_bottom);
+            arrPoint.push(point_right_top);
+            var options = {
+                map: map,
+                pointArr: arrPoint,
+                url: "../src/img/45.png",
+                id: "imgLayer",
+                name: "imgLayerId"
+            };
+            G.utils.LayerUtil.addImageLayer(options);
+        });
+        jQuery('#draw').on('click', function () {
+            var x = [97.8, 117.44, 108.23, 114.87, 107.23, 109.21, 111.2];
+            var y = [34.7, 32.32, 37.155, 36.7, 32.32, 33.22, 33];
+            debugger;
+            for(var i=0;i< x.length;i++) {
+                var blinkVectorMarkerId = animateCom.blinkVectorMarker({
+                    //闪烁间隔，单位毫秒
+                    interval: 50,
+                    //填充颜色
+                    fillColor: {"alpha": 200, "r": 200, "g": 0, "b": 0},
+                    //位置
+                    point: [x[i], y[i]],
+                    //动画时长，单位毫秒
+                    cost: 500000
+                });
+                //图标点闪烁
+            }
+        });
+        jQuery('#DelLayer').on('click', function () {
+            G.utils.LayerUtil.clearImageLayer(map, "imgLayer");
+        });
+        jQuery('#kriging').on('click', function () {
+            var t = [10, 20, 9, 10, 25, 17, 1];
+            var x = [97.8, 107.44, 108.23, 114.87, 107.23, 109.21, 111.2];
+            var y = [34.7, 32.32, 37.155, 36.7, 32.32, 33.22, 33];
+            var model = "spherical";
+            var sigma2 =0.1, alpha = 100;
+            var variogram = kriging.train(t, x, y, model, sigma2, alpha);
+debugger;
+            var extent = [90,30, 138, 52];
+            var cellWidth = 0.05;
+            var pointGrid = turf.pointGrid(extent, cellWidth, {units: 'degrees'});
+            var value = kriging.predict(-116.400146484375, 39.89547729492188, variogram);
+            for (var i = 0; i < pointGrid.features.length; i++) {
+                pointGrid.features[i].properties.temperature = kriging.predict(pointGrid.features[i].geometry.coordinates[0], pointGrid.features[i].geometry.coordinates[1], variogram);
+            }
+            var breaks = [1, 3, 5, 9, 13, 15, 18, 20, 25];
+
+            //var isolines = turf.isolines(pointGrid, breaks, {zProperty: 'temperature'});
+            //console.debug(isolines);
+            //
+            var isobands = turf.isobands(pointGrid, breaks, {zProperty: 'temperature'});
+            debugger;
+            var symbol;
+            var ploylineSymbol1 = new g2.syms.SimpleFillsymbol({
+                fillColor: new g2.syms.Color({
+                    a: 153,
+                    r: 255,
+                    g: 0,
+                    b: 0
+                }),
+                borderColor: new g2.syms.Color({
+                    a: 0,
+                    r: 0,
+                    g: 0,
+                    b: 0
+                })
+            });
+            var ploylineSymbol2 = new g2.syms.SimpleFillsymbol({
+                fillColor: new g2.syms.Color({
+                    a: 153,
+                    r: 255,
+                    g: 255,
+                    b: 0
+                }),
+                borderColor: new g2.syms.Color({
+                    a: 0,
+                    r: 0,
+                    g: 0,
+                    b: 0
+                })
+            });
+            var ploylineSymbol3 = new g2.syms.SimpleFillsymbol({
+                fillColor: new g2.syms.Color({
+                    a: 153,
+                    r: 0,
+                    g: 255,
+                    b: 0
+                }),
+                borderColor: new g2.syms.Color({
+                    a: 0,
+                    r: 0,
+                    g: 0,
+                    b: 0
+                })
+            });
+            var ploylineSymbol4 = new g2.syms.SimpleFillsymbol({
+                fillColor: new g2.syms.Color({
+                    a: 153,
+                    r: 0,
+                    g: 255,
+                    b: 205
+                }),
+                borderColor: new g2.syms.Color({
+                    a: 0,
+                    r: 0,
+                    g: 0,
+                    b: 0
+                })
+            });
+            var ploylineSymbol5 = new g2.syms.SimpleFillsymbol({
+                fillColor: new g2.syms.Color({
+                    a: 153,
+                    r: 0,
+                    g: 0,
+                    b: 255
+                }),
+                borderColor: new g2.syms.Color({
+                    a: 0,
+                    r: 0,
+                    g: 0,
+                    b: 0
+                })
+            });
+            var ploylineSymbol6 = new g2.syms.SimpleFillsymbol({
+                fillColor: new g2.syms.Color({
+                    a: 153,
+                    r: 255,
+                    g: 0,
+                    b: 255
+                }),
+                borderColor: new g2.syms.Color({
+                    a: 0,
+                    r: 0,
+                    g: 0,
+                    b: 0
+                })
+            });
+            var ploylineSymbol7 = new g2.syms.SimpleFillsymbol({
+                fillColor: new g2.syms.Color({
+                    a: 153,
+                    r: 128,
+                    g: 128,
+                    b: 128
+                }),
+                borderColor: new g2.syms.Color({
+                    a: 0,
+                    r: 0,
+                    g: 0,
+                    b: 0
+                })
+            });
+
+            for (var i = 0; i < isobands.features.length; i++) {
+                var featureSet = new g2.fea.FeatureSet();
+                var featureLayer = new g2.lys.FeatureLayer({map: map.getMap()});
+                map.getMap().addLayer(featureLayer);
+                if (isobands.features[i].properties.temperature == "20-25") {
+                    symbol = ploylineSymbol1;
+                }
+                if (isobands.features[i].properties.temperature == "18-20") {
+                    symbol = ploylineSymbol2;
+                }
+                if (isobands.features[i].properties.temperature == "15-18") {
+                    symbol = ploylineSymbol3;
+                }
+                if (isobands.features[i].properties.temperature == "13-15") {
+                    symbol = ploylineSymbol4;
+                }
+                if (isobands.features[i].properties.temperature == "9-13") {
+                    symbol = ploylineSymbol5;
+                }
+                if (isobands.features[i].properties.temperature == "5-9") {
+                    symbol = ploylineSymbol6;
+                }
+                if (isobands.features[i].properties.temperature == "3-5") {
+                    symbol = ploylineSymbol7;
+                }
+                if (isobands.features[i].properties.temperature == "1-3") {
+                    symbol = ploylineSymbol7;
+                }
+                var areaPolygon = new g2.geom.Polygon({spatialReference: g2.geom.SpatialReference.EPSG4326});
+                for (var j = 0; j < isobands.features[i].geometry.coordinates.length; j++) {
+                    for (var m = 0; m < isobands.features[i].geometry.coordinates[j].length; m++) {
+                        var areaRing = new g2.geom.Ring({spatialReference: g2.geom.SpatialReference.EPSG4326});
+                        for (var n = 0; n < isobands.features[i].geometry.coordinates[j][m].length; n++) {
+                            var point = new g2.geom.Point({
+                                x: isobands.features[i].geometry.coordinates[j][m][n][0],
+                                y: isobands.features[i].geometry.coordinates[j][m][n][1],
+                                spatialReference: g2.geom.SpatialReference.EPSG4326
+                            });
+                            areaRing.addPoint(point);
+                        }
+                        areaPolygon.addGeometry(areaRing);
+                    }
+                }
+                var polylineFeature = new g2.fea.Feature({geometry: areaPolygon});
+                featureSet.add(polylineFeature);
+                featureLayer.addFeatures(featureSet);
+                var sim = new g2.carto.SimpleRenderer({symbol: symbol});
+                featureLayer.render(sim);
+            }
+
+
+            var pointC = new g2.geom.Point({
+                x: parseFloat(112.5),
+                y: parseFloat(33),
+                spatialReference: g2.geom.SpatialReference.EPSG4326
+            });
+            map.getMap().setCenter(pointC);
+            map.getMap().zoomTo(8);
+        });
+    });
+</script>
+</body>
+</html>
